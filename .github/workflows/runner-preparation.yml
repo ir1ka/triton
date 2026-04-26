@@ -62,26 +62,26 @@ jobs:
           if [ -z "$LAST_RUN" ] || [ "$LAST_RUN" = "null" ]; then
             echo "No prior successful run found; will run CI."
             echo "n_hours_since_last_run=true" >> $GITHUB_ENV
-            return 0
+            LAST_RUN_TS=""
+          else
+            LAST_RUN_TS=$(date -d "$LAST_RUN" +%s 2>/dev/null) || LAST_RUN_TS=""
           fi
 
-          # Convert to timestamp
-          LAST_RUN_TS=$(date -d "$LAST_RUN" +%s) || {
-            echo "Failed to parse date; will run CI."
-            echo "n_hours_since_last_run=true" >> $GITHUB_ENV
-            return 0
-          }
-          NOW_TS=$(date +%s)
-          DIFF=$(( (NOW_TS - LAST_RUN_TS) / 3600 )) # Difference in hours
+          if [ -n "$LAST_RUN_TS" ]; then
+            NOW_TS=$(date +%s)
+            DIFF=$(( (NOW_TS - LAST_RUN_TS) / 3600 )) # Difference in hours
+            echo "Last run was $DIFF hours ago."
 
-          echo "Last run was $DIFF hours ago."
-
-          if [ "$DIFF" -ge 4 ]; then
-            echo "Will run CI; last build was long enough ago."
-            echo "n_hours_since_last_run=true" >> $GITHUB_ENV
+            if [ "$DIFF" -ge 4 ]; then
+              echo "Will run CI; last build was long enough ago."
+              echo "n_hours_since_last_run=true" >> $GITHUB_ENV
+            else
+              echo "Will not run CI; last build was too recent."
+              echo "n_hours_since_last_run=false" >> $GITHUB_ENV
+            fi
           else
-            echo "Will not run CI; last build was too recent."
-            echo "n_hours_since_last_run=false" >> $GITHUB_ENV
+            echo "Failed to parse last run date; will run CI."
+            echo "n_hours_since_last_run=true" >> $GITHUB_ENV
           fi
       # We want to run integration tests on the main branch (i.e. post-submit)
       # occasionally, because pre-submit CI caches will only read from caches
