@@ -58,8 +58,19 @@ jobs:
             "https://api.github.com/repos/$REPO_NAME/actions/workflows/$WORKFLOW_ID/runs?branch=main&status=success&per_page=1" \
             | jq -r '.workflow_runs[0].updated_at')
 
+          # If no prior run exists or API call failed, default to running CI
+          if [ -z "$LAST_RUN" ] || [ "$LAST_RUN" = "null" ]; then
+            echo "No prior successful run found; will run CI."
+            echo "n_hours_since_last_run=true" >> $GITHUB_ENV
+            return 0
+          fi
+
           # Convert to timestamp
-          LAST_RUN_TS=$(date -d "$LAST_RUN" +%s)
+          LAST_RUN_TS=$(date -d "$LAST_RUN" +%s) || {
+            echo "Failed to parse date; will run CI."
+            echo "n_hours_since_last_run=true" >> $GITHUB_ENV
+            return 0
+          }
           NOW_TS=$(date +%s)
           DIFF=$(( (NOW_TS - LAST_RUN_TS) / 3600 )) # Difference in hours
 
