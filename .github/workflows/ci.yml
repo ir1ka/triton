@@ -23,14 +23,14 @@ jobs:
 
   integration-tests-nvidia:
     needs: runner-preparation
-    if: needs.runner-preparation.outputs.matrix-NVIDIA != ''
+    if: github.event_name != 'push' && needs.runner-preparation.outputs.matrix-NVIDIA != ''
     uses: ./.github/workflows/integration-tests-nvidia.yml
     with:
       matrix: ${{ needs.runner-preparation.outputs.matrix-NVIDIA }}
 
   integration-tests-amd:
     needs: runner-preparation
-    if: needs.runner-preparation.outputs.matrix-AMD != ''
+    if: github.event_name != 'push' && needs.runner-preparation.outputs.matrix-AMD != ''
     uses: ./.github/workflows/integration-tests-amd.yml
     with:
       matrix: ${{ needs.runner-preparation.outputs.matrix-AMD }}
