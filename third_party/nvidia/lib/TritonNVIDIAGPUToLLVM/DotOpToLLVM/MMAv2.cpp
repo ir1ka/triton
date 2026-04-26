@@ -517,6 +517,16 @@ inline static const std::map<TensorCoreType, std::string> mmaInstrPtxScaled = {
      "4X.f32.e2m1.e2m1.f32.ue4m3"},
 };
 
+// === Turing (CC75) MMA Helpers ===
+// Turing tensor cores only support m16n8k8 instructions (half
+// the K-dimension of Ampere's m16n8k16).  To simulate the same
+// m16n8k16 tile, two m16n8k8 instructions are chained:
+//   1. m16n8k8(b, m, k)    — accumulates A[b,m,:,k] * B[b,n,k] → C
+//   2. m16n8k8(b, m, k+1)  — accumulates A[b,m,:,k+1] * B[b,n,k+1] → C (same C)
+// This approach effectively doubles the instruction count but preserves
+// data movement and register allocation.  The outer loop in convertMMAImpl
+// (b → k → m → n) provides natural latency hiding between independent
+// (m, n) tiles at the same k iteration.
 static void callMmaTuringInt8(PTXBuilder &builder, int b,
                               const BaseOffset &base,
                               mlir::triton::PTXInstr &mma, unsigned numMmaRets,

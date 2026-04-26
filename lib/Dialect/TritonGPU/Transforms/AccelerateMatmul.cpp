@@ -368,14 +368,8 @@ public:
   mlir::LogicalResult
   matchAndRewrite(triton::DotOp dotOp,
                   mlir::PatternRewriter &rewriter) const override {
-    if (computeCapability < 70)
+    if (computeCapability < 75)
       return failure();
-    if (computeCapability < 80) {
-      dotOp.emitRemark()
-          << "Dot op using MMA for compute capability " << computeCapability
-          << " has been deprecated. It falls back to the FMA path.";
-      return failure();
-    }
     // TODO: Check data-types and SM compatibility
     auto retType = dotOp.getType();
     if (!retType.getEncoding() ||
@@ -387,6 +381,24 @@ public:
     auto oldAType = cast<RankedTensorType>(a.getType());
     auto oldBType = cast<RankedTensorType>(b.getType());
     auto oldRetType = cast<RankedTensorType>(dotOp.getType());
+
+    // Turing CC75 mmaInstrPtxTuring only supports FP16, INT8, and
+    // FP32_acc×FP16_input.  Reject types that pass supportMMA(v2) but
+    // have no Turing PTX instruction AND are not handled by
+    // decomposeMixedModeDotOp (which promotes FP8→FP16 for CC<89).
+    if (computeCapability == 75) {
+      // Turing has no BF16 operand or accumulator support.
+      if (oldAType.getElementType().isBF16() ||
+          oldBType.getElementType().isBF16() ||
+          oldRetType.getElementType().isBF16()) {
+        return failure();
+      }
+      // Turing has no TF32 hardware; tf32 precision is supported
+      // by supportMMA(v2) but has no Turing PTX instruction.
+      if (dotOp.getInputPrecision() == InputPrecision::TF32) {
+        return failure();
+      }
+    }
 
     // Enable F64 MMA only on SM80/SM90 with high performance F64 tensorcore.
     // Otherwise, fallback to F64 FMA for better performance.

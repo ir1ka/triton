@@ -3246,9 +3246,9 @@ def test_dot(M, N, K, num_warps, col_a, col_b, epilogue, input_precision, in_dty
             if capability[0] == 7:
                 if (M, N, K, num_warps) in [(128, 256, 32, 8), (64, 128, 128, 4), (64, 128, 128, 2)]:
                     pytest.skip("shared memory out of resource")
-                if out_dtype == 'float16':
+                if capability[1] == 0 and out_dtype == 'float16':
                     # TODO: support out_dtype=float16 for tl.dot on V100
-                    pytest.skip("Only test out_dtype=float16 on devices with sm >=80")
+                    pytest.skip("Only test out_dtype=float16 on devices with sm >=75")
             if capability[0] < 9 and in_dtype == 'float8e4nv':
                 pytest.skip("float8e4nv not supported on sm <= 80")
             if in_dtype == 'float64' and input_precision != 'ieee':
